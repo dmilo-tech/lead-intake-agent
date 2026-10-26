@@ -1,0 +1,162 @@
+{
+  "name": "Lead-Test",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "36f1c52f-599d-47f1-a670-6d311581add1",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "const leads = [\n  { name: \"Sabine Kraus\", firma: \"Kraus Coaching\", branche: \"Coaching\", budget: \"3.000-10.000 €\", anliegen: \"Wir möchten Erstgespräch-Buchungen, Rechnungen und Erinnerungsmails automatisieren.\", soll: \"hot\" },\n  { name: \"Timo Wendt\", firma: \"Wendt Digital\", branche: \"Agentur\", budget: \"über 10.000 €\", anliegen: \"Kunden-Onboarding mit Formular, Vertrag und Projektanlage in Asana soll automatisch laufen.\", soll: \"hot\" },\n  { name: \"Mira Lenz\", firma: \"Lenz Leadership\", branche: \"Coaching\", budget: \"über 10.000 €\", anliegen: \"KI soll Coaching-Protokolle zusammenfassen und Follow-up-Mails vorbereiten.\", soll: \"hot\" },\n  { name: \"Jonas Peters\", firma: \"Peters & Partner Media\", branche: \"Agentur\", budget: \"3.000-10.000 €\", anliegen: \"Monatliche Kundenreports aus Google Ads und Meta sollen automatisch erstellt werden.\", soll: \"hot\" },\n  { name: \"Lea Brandt\", firma: \"Brandt Coaching\", branche: \"Coaching\", budget: \"unter 3.000 €\", anliegen: \"Terminbuchungen sollen automatisch im Kalender und CRM landen.\", soll: \"warm\" },\n  { name: \"Felix Hahn\", firma: \"Hahn Creative\", branche: \"Agentur\", budget: \"unter 3.000 €\", anliegen: \"Social-Media-Posts sollen automatisch aus unserem Blog erstellt werden.\", soll: \"warm\" },\n  { name: \"Nina Vogel\", firma: \"Vogel Coaching\", branche: \"Coaching\", budget: \"3.000-10.000 €\", anliegen: \"Wir wollen irgendwas mit KI machen, wissen aber noch nicht genau was.\", soll: \"warm\" },\n  { name: \"Paul Schneider\", firma: \"Schneider Werbeagentur\", branche: \"Agentur\", budget: \"über 10.000 €\", anliegen: \"Wir überlegen, ob Automatisierung für uns sinnvoll ist.\", soll: \"warm\" },\n  { name: \"Claudia Roth\", firma: \"Roth Steuerberatung\", branche: \"Sonstige\", budget: \"über 10.000 €\", anliegen: \"Belege aus E-Mails sollen automatisch ausgelesen und in DATEV übertragen werden.\", soll: \"warm\" },\n  { name: \"Erik Mayer\", firma: \"Mayer Fahrräder\", branche: \"Sonstige\", budget: \"unter 3.000 €\", anliegen: \"Bestellungen aus dem Onlineshop sollen automatisch in unsere Lagerliste übertragen werden.\", soll: \"warm\" },\n  { name: \"Gisela Wolf\", firma: \"Wolf Immobilien\", branche: \"Sonstige\", budget: \"unter 3.000 €\", anliegen: \"Wir suchen jemanden, der unser Büro neu streicht.\", soll: \"cold\" },\n  { name: \"Anja Becker\", firma: \"Becker Coaching\", branche: \"Coaching\", budget: \"3.000-10.000 €\", anliegen: \"Ich suche eine Grafikerin für mein neues Logo.\", soll: \"cold\" },\n  { name: \"SEO Profi\", firma: \"Top Ranking Ltd\", branche: \"Sonstige\", budget: \"über 10.000 €\", anliegen: \"Günstige Backlinks! Platz 1 bei Google garantiert, jetzt Angebot sichern!\", soll: \"spam\" },\n  { name: \"Test Test\", firma: \"asdf\", branche: \"Agentur\", budget: \"unter 3.000 €\", anliegen: \"asdf test 123\", soll: \"spam\" },\n  { name: \"Max Invest\", firma: \"Crypto Gains\", branche: \"Coaching\", budget: \"über 10.000 €\", anliegen: \"Ich biete Ihnen Krypto-Investments mit 300 % Rendite im Monat.\", soll: \"spam\" }\n];\n\n return leads.slice(6).map((lead, i) => ({\n  json: { ...lead, email: `test${i + 1}@example.com`, eingegangenAm: \"\" }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "b71dbc92-de3b-416e-ad42-8def318c9246",
+      "name": "Lead normalisieren"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-6-luna",
+          "mode": "list",
+          "cachedResultName": "GPT-6-LUNA"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Name: {{ $json.name }}\nFirma: {{ $json.firma }}\nBranche: {{ $json.branche }}\nBudget: {{ $json.budget }}\nAnliegen: {{ $json.anliegen }}"
+            },
+            {
+              "role": "system",
+              "content": "Du bist ein Lead-Qualifizierer für eine KI-Automatisierungsagentur.\nAntworte ausschließlich mit JSON in diesem Format:\n{\"kategorie\": \"hot\" | \"warm\" | \"cold\" | \"spam\", \"score\": Zahl von 1 bis 10, \"begruendung\": \"maximal 2 Sätze\"}\n\nKriterien:\n- hot: Branche Coaching oder Agentur UND Budget ab 3.000 € UND ein konkretes Automatisierungsanliegen\n- warm: passendes Anliegen, aber Budget unter 3.000 € oder Anliegen noch unklar\n- cold: kein Bezug zu Automatisierung oder KI\n- spam: Werbung, Unsinn oder offensichtliche Testeinträge"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object",
+              "verbosity": "low"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        256
+      ],
+      "id": "1dca7d74-f120-49f1-878f-4af6b7bfc764",
+      "name": "Message a model",
+      "retryOnFail": false,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "RQIFDQ9fBgqrW0rr",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const lead = $('Lead normalisieren').item.json;\nconst roh = $input.item.json.output?.[0]?.content?.[0]?.text;\n\nlet ki = roh;\nif (typeof roh === \"string\") {\n  try {\n    ki = JSON.parse(roh);\n  } catch (e) {\n    ki = null;\n  }\n}\n\nconst erlaubt = [\"hot\", \"warm\", \"cold\", \"spam\"];\nconst gueltig = ki !== null && typeof ki === \"object\" && erlaubt.includes(ki.kategorie);\n\nreturn {\n  json: {\n    ...lead,\n    kategorie: gueltig ? ki.kategorie : \"manuell_pruefen\",\n    score: gueltig ? ki.score : null,\n    begruendung: gueltig ? ki.begruendung : \"KI-Antwort war ungültig\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        256
+      ],
+      "id": "ea503333-bdd5-472d-8b68-9b0c811ef64d",
+      "name": "KI-prüfen"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ergebnisse = $input.all().map(item => item.json);\nconst antworten = $('Message a model').all().map(item => item.json);\nconst falsch = ergebnisse.filter(lead => lead.kategorie !== lead.soll);\nconst treffer = ergebnisse.length - falsch.length;\nlet inputTokens = 0;\nlet outputTokens = 0;\nfor (const a of antworten) {\n  inputTokens += a.usage?.input_tokens ?? 0;\n  outputTokens += a.usage?.output_tokens ?? 0;\n}\n\nconst kosten = inputTokens / 1000000 * 0.10 + outputTokens / 1000000 * 0.50;\n\nreturn [{json: {\n  trefferquote: `${treffer} von ${ergebnisse.length}`,\n  falsch: falsch.map(lead => `${lead.name}: soll ${lead.soll}, ist ${lead.kategorie} - ${lead.begruendung}`),\n  inputTokens,\n  outputTokens,\n  kostenGesamtUSD: kosten,\n  kostenProLeadUSD: kosten / ergebnisse.length\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        256
+      ],
+      "id": "bbb1d014-39e2-4677-a35b-6a21c6c519e6",
+      "name": "Auswertung"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Lead normalisieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "KI-prüfen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead normalisieren": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KI-prüfen": {
+      "main": [
+        [
+          {
+            "node": "Auswertung",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "cf44673a-aa7f-4f54-82f7-9349980b6169",
+  "meta": {
+    "instanceId": "0625c6b8a8cb909bb84af1497cdf30db35519cd07efb95dcc602eb64e1d8e27b"
+  },
+  "nodeGroups": [],
+  "id": "6LsOr9zaNhrmpr4f",
+  "tags": []
+}

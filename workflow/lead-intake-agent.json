@@ -1,0 +1,1063 @@
+{
+  "name": "Lead Intake-Agent copy (GitHub)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fc891384-8c85-45cf-99e3-622f48cadfc9",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -288,
+        -96
+      ],
+      "id": "c7d78c64-0b71-44c7-8b29-1fccc3832655",
+      "name": "Webhook",
+      "webhookId": "fc891384-8c85-45cf-99e3-622f48cadfc9",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "KWsFUZAFZz83MTcX",
+          "name": "Tally Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const fields = $input.item.json.body?.data?.fields ?? [];\n\nfunction wert(label) {\n  const f = fields.find(f => f.label === label);\n  if (!f || f.value == null) return \"\";\n  if (Array.isArray(f.value) && f.options) {\n    return f.options\n      .filter(o => f.value.includes(o.id))\n      .map(o => o.text)\n      .join(\", \");\n  }\n  return String(f.value).trim();\n}\n\nreturn {\n  json: {\n    name: wert(\"Name\"),\n    email: wert(\"E-Mail\").toLowerCase(),\n    firma: wert(\"Firma\"),\n    branche: wert(\"Branche\"),\n    budget: wert(\"Budget\"),\n    anliegen: wert(\"Worum geht's?\"),\n    eingegangenAm: $input.item.json.body?.createdAt ?? \"\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        -96
+      ],
+      "id": "2b7bf779-f158-4bc5-9008-4e556c3b0698",
+      "name": "Lead normalisieren"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-6-luna",
+          "mode": "list",
+          "cachedResultName": "GPT-6-LUNA"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Du bist ein Lead-Qualifizierer für eine KI-Automatisierungsagentur.\nAntworte ausschließlich mit JSON in diesem Format:\n{\"kategorie\": \"hot\" | \"warm\" | \"cold\" | \"spam\", \"score\": Zahl von 1 bis 10, \"begruendung\": \"maximal 2 Sätze\"}\n\nKriterien:\n- hot: Branche Coaching oder Agentur UND Budget ab 3.000 € UND ein konkretes Automatisierungsanliegen\n- warm: passendes Anliegen, aber Budget unter 3.000 € oder Anliegen noch unklar\n- cold: kein Bezug zu Automatisierung oder KI\n- spam: Werbung, Unsinn oder offensichtliche Testeinträge"
+            },
+            {
+              "content": "=Name: {{ $json.name }}\nFirma: {{ $json.firma }}\nBranche: {{ $json.branche }}\nBudget: {{ $json.budget }}\nAnliegen: {{ $json.anliegen }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object",
+              "verbosity": "low"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        -80,
+        128
+      ],
+      "id": "16bfd076-186a-4bc3-b209-d7099dba30fc",
+      "name": "Message a model",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "RQIFDQ9fBgqrW0rr",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const lead = $('Lead normalisieren').item.json;\nconst roh = $input.item.json.output?.[0]?.content?.[0]?.text;\n\nlet ki = roh;\nif (typeof roh === \"string\") {\n  try {\n    ki = JSON.parse(roh);\n  } catch (e) {\n    ki = null;\n  }\n}\n\nconst erlaubt = [\"hot\", \"warm\", \"cold\", \"spam\"];\nconst gueltig = ki !== null && typeof ki === \"object\" && erlaubt.includes(ki.kategorie);\n\nreturn {\n  json: {\n    ...lead,\n    kategorie: gueltig ? ki.kategorie : \"manuell_pruefen\",\n    score: gueltig ? ki.score : null,\n    begruendung: gueltig ? ki.begruendung : \"KI-Antwort war ungültig\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -96
+      ],
+      "id": "467aa085-2360-4dd8-b2b1-6a82079cf91d",
+      "name": "KI-prüfen"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "app3lNDWxnAFlyHj4",
+          "mode": "list",
+          "cachedResultName": "Lead Intake",
+          "cachedResultUrl": "https://airtable.com/app3lNDWxnAFlyHj4"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblNfuTjNZmwwb6rg",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://airtable.com/app3lNDWxnAFlyHj4/tblNfuTjNZmwwb6rg"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "E-Mail": "={{ $json.email }}",
+            "Firma": "={{ $json.firma }}",
+            "Branche": "={{ $json.branche }}",
+            "Budget": "={{ $json.budget }}",
+            "Anliegen": "={{ $json.anliegen }}",
+            "Kategorie": "={{ $json.kategorie }}",
+            "Score": "={{ $json.score }}",
+            "Eingegangen": "={{ $json.eingegangenAm }}",
+            "Begründung": "={{ $json.begruendung }}",
+            "Name": "={{ $json.name }}",
+            "Status": "offen"
+          },
+          "matchingColumns": [
+            "E-Mail"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "E-Mail",
+              "displayName": "E-Mail",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Firma",
+              "displayName": "Firma",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Branche",
+              "displayName": "Branche",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Anliegen",
+              "displayName": "Anliegen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Kategorie",
+              "displayName": "Kategorie",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "hot",
+                  "value": "hot"
+                },
+                {
+                  "name": "warm",
+                  "value": "warm"
+                },
+                {
+                  "name": "cold",
+                  "value": "cold"
+                },
+                {
+                  "name": "spam",
+                  "value": "spam"
+                },
+                {
+                  "name": "manuell_pruefen",
+                  "value": "manuell_pruefen"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Begründung",
+              "displayName": "Begründung",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Eingegangen",
+              "displayName": "Eingegangen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "offen",
+                  "value": "offen"
+                },
+                {
+                  "name": "freigegeben",
+                  "value": "freigegeben"
+                },
+                {
+                  "name": "abgelehnt",
+                  "value": "abgelehnt"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        336,
+        -96
+      ],
+      "id": "196419b2-19ba-4cd5-b949-602aa7113757",
+      "name": "Leads speichern",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "QwwdwN4yMn9doI0d",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "09b33ee1-c61d-46e0-b526-0cb2d187d092",
+              "leftValue": "={{ $('KI-prüfen').item.json.kategorie }}",
+              "rightValue": "hot",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        -96
+      ],
+      "id": "898a52b3-8ab9-42a7-830f-71f64921ee9e",
+      "name": "Ist hot?"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "chatId": "DEINE_CHAT_ID",
+        "message": "=HOT-Lead (Score {{ $('KI-prüfen').item.json.score }}/10}}\nName: {{ $('KI-prüfen').item.json.name }}\nFirma: {{ $('KI-prüfen').item.json.firma }}\nBudget: {{ $('KI-prüfen').item.json.budget }}\nAnliegen: {{ $('KI-prüfen').item.json.anliegen }}\nBegründung: {{ $('KI-prüfen').item.json.begruendung }}\n",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "✅ Freigeben",
+            "disapproveLabel": "❌ Ablehnen"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 24
+            }
+          },
+          "appendAttribution": true
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        784,
+        -192
+      ],
+      "id": "6d8c6a3f-89cb-45c9-bc38-2ec24e4df706",
+      "name": "Freigabe anfragen",
+      "webhookId": "eaa3c3d5-29d7-49da-ae6f-036f9fac485a",
+      "credentials": {
+        "telegramApi": {
+          "id": "c54bEC5ujVEBi4Ue",
+          "name": "Telegram Lead-Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "97d4247c-ef63-40bc-924e-07c6b132a01a",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "={{ $json.data.approved}}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1008,
+        -192
+      ],
+      "id": "924aa610-ac0a-426e-a7be-1fc2d607589b",
+      "name": "Freigegeben?"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "app3lNDWxnAFlyHj4",
+          "mode": "list",
+          "cachedResultName": "Lead Intake",
+          "cachedResultUrl": "https://airtable.com/app3lNDWxnAFlyHj4"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblNfuTjNZmwwb6rg",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://airtable.com/app3lNDWxnAFlyHj4/tblNfuTjNZmwwb6rg"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Score": 0,
+            "E-Mail": "={{ $('KI-prüfen').item.json.email }}",
+            "Status": "freigegeben",
+            "Antwortentwurf": "=   {{ $json.output[0].content[0].text }}"
+          },
+          "matchingColumns": [
+            "E-Mail"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "E-Mail",
+              "displayName": "E-Mail",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Firma",
+              "displayName": "Firma",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Branche",
+              "displayName": "Branche",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Anliegen",
+              "displayName": "Anliegen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Kategorie",
+              "displayName": "Kategorie",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "hot",
+                  "value": "hot"
+                },
+                {
+                  "name": "warm",
+                  "value": "warm"
+                },
+                {
+                  "name": "cold",
+                  "value": "cold"
+                },
+                {
+                  "name": "spam",
+                  "value": "spam"
+                },
+                {
+                  "name": "manuell_pruefen",
+                  "value": "manuell_pruefen"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Begründung",
+              "displayName": "Begründung",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Eingegangen",
+              "displayName": "Eingegangen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "offen",
+                  "value": "offen"
+                },
+                {
+                  "name": "freigegeben",
+                  "value": "freigegeben"
+                },
+                {
+                  "name": "abgelehnt",
+                  "value": "abgelehnt"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Antwortentwurf",
+              "displayName": "Antwortentwurf",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        -304
+      ],
+      "id": "aae60a02-f1dd-4412-9700-46f68400f55b",
+      "name": "Status: freigegeben",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "QwwdwN4yMn9doI0d",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "app3lNDWxnAFlyHj4",
+          "mode": "list",
+          "cachedResultName": "Lead Intake",
+          "cachedResultUrl": "https://airtable.com/app3lNDWxnAFlyHj4"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblNfuTjNZmwwb6rg",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://airtable.com/app3lNDWxnAFlyHj4/tblNfuTjNZmwwb6rg"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Score": 0,
+            "E-Mail": "={{ $('KI-prüfen').item.json.email }}",
+            "Status": "abgelehnt"
+          },
+          "matchingColumns": [
+            "E-Mail"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "E-Mail",
+              "displayName": "E-Mail",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Firma",
+              "displayName": "Firma",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Branche",
+              "displayName": "Branche",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Anliegen",
+              "displayName": "Anliegen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Kategorie",
+              "displayName": "Kategorie",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "hot",
+                  "value": "hot"
+                },
+                {
+                  "name": "warm",
+                  "value": "warm"
+                },
+                {
+                  "name": "cold",
+                  "value": "cold"
+                },
+                {
+                  "name": "spam",
+                  "value": "spam"
+                },
+                {
+                  "name": "manuell_pruefen",
+                  "value": "manuell_pruefen"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Begründung",
+              "displayName": "Begründung",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Eingegangen",
+              "displayName": "Eingegangen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "offen",
+                  "value": "offen"
+                },
+                {
+                  "name": "freigegeben",
+                  "value": "freigegeben"
+                },
+                {
+                  "name": "abgelehnt",
+                  "value": "abgelehnt"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1232,
+        -80
+      ],
+      "id": "9ece3646-d40d-4b64-8283-5987ad1531b7",
+      "name": "Status: abgelehnt",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "QwwdwN4yMn9doI0d",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-6-luna",
+          "mode": "list",
+          "cachedResultName": "GPT-6-LUNA"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "     Du schreibst für eine KI-Automatisierungsagentur eine kurze Antwort-Mail auf eine Kundenanfrage.\n     Ton: freundlich, professionell, per Sie. Maximal 120 Wörter.\n     Bedanke dich, greife das konkrete Anliegen auf und schlage ein 30-minütiges Erstgespräch vor.\n     Nenne keine Preise. Gib nur den Mail-Text aus, ohne Betreffzeile."
+            },
+            {
+              "content": "=Name: {{ $('KI-prüfen').item.json.name }}\nFirma: {{ $('KI-prüfen').item.json.firma }}\nAnliegen: {{ $('KI-prüfen').item.json.anliegen }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "text",
+              "verbosity": "low"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1136,
+        -352
+      ],
+      "id": "0ecb69d0-8492-4ee4-b17e-225f21682567",
+      "name": "Antwort entwerfen",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openAiApi": {
+          "id": "RQIFDQ9fBgqrW0rr",
+          "name": "OpenAI account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Lead normalisieren": [
+      {
+        "json": {
+          "name": "Hanna Berger",
+          "email": "berger@coaching.com",
+          "firma": "Berger Coaching GmbH ",
+          "branche": "Coaching",
+          "budget": "über 10.000 €",
+          "anliegen": "Wir möchten Anfragen aus unserem Website-Formular automatisch qualifizieren und ins CRM übertragen.",
+          "eingegangenAm": "2026-10-23T10:00:00.000Z"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Lead normalisieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead normalisieren": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "KI-prüfen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KI-prüfen": {
+      "main": [
+        [
+          {
+            "node": "Leads speichern",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leads speichern": {
+      "main": [
+        [
+          {
+            "node": "Ist hot?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ist hot?": {
+      "main": [
+        [
+          {
+            "node": "Freigabe anfragen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freigabe anfragen": {
+      "main": [
+        [
+          {
+            "node": "Freigegeben?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Freigegeben?": {
+      "main": [
+        [
+          {
+            "node": "Antwort entwerfen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status: abgelehnt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Antwort entwerfen": {
+      "main": [
+        [
+          {
+            "node": "Status: freigegeben",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "xdN52xegSHrYT3NB",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "c2954c88-25fe-47fb-b0a7-b61ff2533f4c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0625c6b8a8cb909bb84af1497cdf30db35519cd07efb95dcc602eb64e1d8e27b"
+  },
+  "nodeGroups": [],
+  "id": "jN4Rx0cnGQ3L87Jg",
+  "tags": []
+}
