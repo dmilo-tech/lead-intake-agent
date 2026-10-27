@@ -125,7 +125,7 @@ Ich habe vorher eine erste Automatisierung in Make.com gebaut und dieses Projekt
 
 ## Learnings und nächste Schritte
 
-- Node-Namen müssen exakt übereinstimmen: Heißt die Node „KI-prüfen“, muss im Code $('KI-prüfen') stehen, nicht $('KI prüfen').
+-    - Node-Namen müssen exakt übereinstimmen: Heißt die Node „KI-prüfen“, muss im Code `$('KI-prüfen')` stehen, nicht `$('KI prüfen')`.
 - Geringste Rechte: Jeder Zugang bekommt nur die Rechte, die er wirklich braucht. Mein Airtable-Token darf nur lesen und schreiben, und nur in der Base „Lead Intake“. Gerät er in falsche Hände, bleibt der Schaden klein.
 - filter, map und Template Literals: filter sucht die Leads heraus, die eine Bedingung erfüllen, map macht aus jedem einen lesbaren Satz, Template Literals setzen Werte in Text ein.
 - Getrennter Test-Workflow, damit keine 15 Fake-Leads im CRM landen und keine Freigabe-Nachrichten in Telegram ankommen.
